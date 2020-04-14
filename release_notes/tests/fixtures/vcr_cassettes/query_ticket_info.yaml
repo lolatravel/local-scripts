@@ -1,0 +1,44 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Content-Type:
+      - application/json
+    method: GET
+    uri: https://lola.atlassian.net/rest/api/3/issue/PLAT-337
+  response:
+    body:
+      string: '{"expand":"renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations","id":"17622","self":"https://lola.atlassian.net/rest/api/3/issue/17622","key":"PLAT-337","fields":{"statuscategorychangedate":"2020-02-18T12:05:47.696-0500","issuetype":{"self":"https://lola.atlassian.net/rest/api/3/issuetype/10068","id":"10068","description":"Bugs
+        track problems or errors.","iconUrl":"https://lola.atlassian.net/secure/viewavatar?size=medium&avatarId=10303&avatarType=issuetype","name":"Bug","subtask":false,"avatarId":10303,"entityId":"c462f98d-2736-4de9-b365-2b7a457168f7"},"timespent":null,"project":{"self":"https://lola.atlassian.net/rest/api/3/project/10014","id":"10014","key":"PLAT","name":"Platform","projectTypeKey":"software","simplified":true,"avatarUrls":{"48x48":"https://lola.atlassian.net/secure/projectavatar?pid=10014&avatarId=10009","24x24":"https://lola.atlassian.net/secure/projectavatar?size=small&s=small&pid=10014&avatarId=10009","16x16":"https://lola.atlassian.net/secure/projectavatar?size=xsmall&s=xsmall&pid=10014&avatarId=10009","32x32":"https://lola.atlassian.net/secure/projectavatar?size=medium&s=medium&pid=10014&avatarId=10009"}},"customfield_10032":null,"fixVersions":[],"customfield_10033":null,"customfield_10034":null,"aggregatetimespent":null,"customfield_10035":null,"resolution":null,"customfield_10036":null,"customfield_10027":null,"resolutiondate":null,"workratio":-1,"watches":{"self":"https://lola.atlassian.net/rest/api/3/issue/PLAT-337/watchers","watchCount":1,"isWatching":false},"lastViewed":null,"created":"2020-02-18T12:05:47.538-0500","customfield_10020":null,"customfield_10021":null,"customfield_10022":"1|i011nt:","priority":{"self":"https://lola.atlassian.net/rest/api/3/priority/3","iconUrl":"https://lola.atlassian.net/images/icons/priorities/medium.svg","name":"Medium","id":"3"},"customfield_10026":null,"labels":[],"customfield_10016":null,"customfield_10017":null,"customfield_10018":{"hasEpicLinkFieldDependency":false,"showField":false,"nonEditableReason":{"reason":"PLUGIN_LICENSE_ERROR","message":"Portfolio
+        for Jira must be licensed for the Parent Link to be available."}},"customfield_10019":null,"aggregatetimeoriginalestimate":null,"timeestimate":null,"versions":[],"issuelinks":[],"assignee":null,"updated":"2020-02-18T12:05:47.538-0500","status":{"self":"https://lola.atlassian.net/rest/api/3/status/10037","description":"","iconUrl":"https://lola.atlassian.net/","name":"To
+        Do","id":"10037","statusCategory":{"self":"https://lola.atlassian.net/rest/api/3/statuscategory/2","id":2,"key":"new","colorName":"blue-gray","name":"To
+        Do"}},"components":[],"timeoriginalestimate":null,"description":{"version":1,"type":"doc","content":[{"type":"codeBlock","attrs":{"language":"python"},"content":[{"type":"text","text":"ValueError:
+        Unable to configure handler u''class'': ''unicode'' object has no attribute
+        ''pop''"}]}]},"customfield_10010":null,"customfield_10014":null,"customfield_10015":null,"timetracking":{},"customfield_10005":null,"customfield_10006":null,"security":null,"customfield_10007":null,"customfield_10008":null,"customfield_10009":null,"aggregatetimeestimate":null,"attachment":[],"summary":"Bugsnag
+        logging configuration fails","creator":{"self":"https://lola.atlassian.net/rest/api/3/user?accountId=5d0bf08bdae4be0bc931d104","accountId":"5d0bf08bdae4be0bc931d104","emailAddress":"matt.mcmahon@lola.com","avatarUrls":{"48x48":"https://secure.gravatar.com/avatar/bec54fc87d8dc23ac603792f426cb8c3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FMM-0.png&size=48&s=48","24x24":"https://secure.gravatar.com/avatar/bec54fc87d8dc23ac603792f426cb8c3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FMM-0.png&size=24&s=24","16x16":"https://secure.gravatar.com/avatar/bec54fc87d8dc23ac603792f426cb8c3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FMM-0.png&size=16&s=16","32x32":"https://secure.gravatar.com/avatar/bec54fc87d8dc23ac603792f426cb8c3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FMM-0.png&size=32&s=32"},"displayName":"Matt
+        McMahon","active":true,"timeZone":"America/New_York","accountType":"atlassian"},"subtasks":[],"reporter":{"self":"https://lola.atlassian.net/rest/api/3/user?accountId=5d0bf08bdae4be0bc931d104","accountId":"5d0bf08bdae4be0bc931d104","emailAddress":"matt.mcmahon@lola.com","avatarUrls":{"48x48":"https://secure.gravatar.com/avatar/bec54fc87d8dc23ac603792f426cb8c3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FMM-0.png&size=48&s=48","24x24":"https://secure.gravatar.com/avatar/bec54fc87d8dc23ac603792f426cb8c3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FMM-0.png&size=24&s=24","16x16":"https://secure.gravatar.com/avatar/bec54fc87d8dc23ac603792f426cb8c3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FMM-0.png&size=16&s=16","32x32":"https://secure.gravatar.com/avatar/bec54fc87d8dc23ac603792f426cb8c3?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FMM-0.png&size=32&s=32"},"displayName":"Matt
+        McMahon","active":true,"timeZone":"America/New_York","accountType":"atlassian"},"aggregateprogress":{"progress":0,"total":0},"customfield_10000":"{pullrequest={dataType=pullrequest,
+        state=OPEN, stateCount=1}, json={\"cachedValue\":{\"errors\":[],\"summary\":{\"pullrequest\":{\"overall\":{\"count\":1,\"lastUpdated\":\"2020-02-18T15:28:25.000-0500\",\"stateCount\":1,\"state\":\"OPEN\",\"dataType\":\"pullrequest\",\"open\":true},\"byInstanceType\":{\"GitHub\":{\"count\":1,\"name\":\"GitHub\"}}}}},\"isStale\":true}}","customfield_10001":null,"customfield_10002":null,"customfield_10003":null,"customfield_10004":null,"customfield_10038":null,"environment":null,"duedate":null,"progress":{"progress":0,"total":0},"votes":{"self":"https://lola.atlassian.net/rest/api/3/issue/PLAT-337/votes","votes":0,"hasVoted":false},"comment":{"comments":[],"maxResults":0,"total":0,"startAt":0},"worklog":{"startAt":0,"maxResults":20,"total":0,"worklogs":[]}}}'
+    headers:
+      ATL-TraceId: 4ef85332a5bf7bdc
+      Cache-Control: no-cache, no-store, no-transform
+      Connection: keep-alive
+      Content-Encoding: gzip
+      Content-Type: application/json;charset=UTF-8
+      Date: Thu, 05 Mar 2020 13:40:01 GMT
+      Server: AtlassianProxy/1.15.8.1
+      Set-Cookie: atlassian.xsrf.token=93586782-c99f-415d-8a63-911905fc4756_1e6568a5a0140804701af828977005ee3a7e3ac4_lin;
+        Path=/; Secure
+      Strict-Transport-Security: max-age=315360000; includeSubDomains; preload
+      Timing-Allow-Origin: '*'
+      Transfer-Encoding: chunked
+      Vary: Accept-Encoding
+      X-AACCOUNTID: 5cf1776a55a88a0fc8639f32
+      X-AREQUESTID: 24a271ba-261b-4920-93bd-09752d780d2f
+      X-Content-Type-Options: nosniff
+      X-XSS-Protection: 1; mode=block
+    status:
+      code: 200
+      message: ''
+    url: https://lola.atlassian.net/rest/api/3/issue/PLAT-337
+version: 1

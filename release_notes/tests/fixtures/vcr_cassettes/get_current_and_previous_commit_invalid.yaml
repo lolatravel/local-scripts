@@ -1,0 +1,28 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Content-Type:
+      - application/json
+      User-Agent:
+      - Swagger-Codegen/10.0.1/python
+    method: GET
+    uri: https://api.pkc.lola.com/apis/apps/v1/namespaces/core-services/replicasets?labelSelector=app%3Dbatman&watch=False
+  response:
+    body:
+      string: '{"kind":"ReplicaSetList","apiVersion":"apps/v1","metadata":{"selfLink":"/apis/apps/v1/namespaces/core-services/replicasets","resourceVersion":"104866559"},"items":[]}
+
+        '
+    headers:
+      Content-Length:
+      - '167'
+      Content-Type:
+      - application/json
+      Date:
+      - Thu, 05 Mar 2020 13:40:08 GMT
+    status:
+      code: 200
+      message: OK
+version: 1
