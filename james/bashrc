@@ -1,0 +1,162 @@
+
+### prompt ###
+#
+# Git things:
+# See https://github.com/git/git/tree/master/contrib/completion
+function __init_git_stuff {
+    # branch prompt
+    source ~/bin/git-prompt.sh
+    # branch completion -- may error out
+    source ~/bin/git-completions.bash
+}
+
+# git-completions may error out
+__init_git_stuff
+
+# tmux info
+# If we're in a plexed shell, set the mltplxr's session id
+plexed_id=""
+if [ "$STY" ]; then
+    IFS=. ID=(${STY})
+    plexed_id='|s.'${ID[0]}
+fi
+if [ "$TMUX" ]; then
+    plexed_id=$plexed_id'|t.'$(tmux display-message -p "#S")
+fi
+
+# kubey stuff
+# grab the current kubernetes context and namepsace
+function __kube_ps1 {
+    kinfo=""
+    if command -v kubectx >/dev/null 2>&1; then
+        kinfo="$(kubectx -c)"
+    fi
+    if command -v kubens >/dev/null 2>&1; then
+        kinfo="${kinfo}.$(kubens -c)"
+    fi
+    if [ "$kinfo" ]; then
+        kinfo="|k.${kinfo}"
+    fi
+    echo $kinfo
+}
+
+
+export PS1="\[\e[1;32m\]${debian_chroot:+($debian_chroot)}\u@\h\[\e[93m\]${plexed_id}\[\e[1;32m\]\[\e[90m\]\$(__kube_ps1)\[\e[1;32m\]:\[\e[1;34m\]\w\[\e[32m\]\$(__git_ps1)\[\e[35m\]\$\n:::\[\e[0m\] "
+
+# looks like
+#     james@tamale|t.work|k.prod.providers:~/bin/local-scripts/james (master)$
+#     ::: <cursor_here>
+#
+
+# Who needs autoenv/direnv?
+#
+cd () {
+    builtin cd $1
+    if [ -f .env ]; then
+        read -p "Source .env? [Y/n]" yn
+        case $yn in
+            "" ) echo "sourcing .env"; source .env;;
+            [Yy] ) echo "sourcing .env"; source .env;;
+            * ) echo "ignoring";;
+        esac
+    fi
+}
+
+
+# I can never remember where I put this
+alias mfa="~/bin/awsmfa/venv/bin/aws-mfa"
+
+# Kube aliases
+alias k="kubectl"
+alias kc="kubectx"
+alias unprod="kubectx non-prod"
+alias prod="kubectx prod; kubens core-services"
+alias dev="kubectx non-prod; kubens core-services-dev"
+alias staging="kubectx non-prod; kubens core-services-staging"
+alias providers-prod="kubectx prod; kubens providers"
+alias providers-staging="kubectx non-prod; kubens providers-staging"
+alias providers-dev="kubectx non-prod; kubens providers-dev"
+
+# kube shortcuts
+#
+function kexec {
+    if [ -z "$1" ]; then
+        echo "please specify a pod name... kexec [pod [cmd [container]]]"
+        k get pods
+        return 1
+    fi
+
+    if [ -z "$2" ]; then
+        cmd=/bin/bash
+        echo "defaulting to cmd=$cmd"
+    else
+        cmd="$2"
+    fi
+
+    if [ -z "$3" ]; then
+        container=""
+    else
+        container="-c $3"
+    fi
+    pod=$(k get pods | rg Running | rg $1 | awk '{print $1}' | head -n 1)
+    echo "using pod=$pod"
+
+    k exec $pod $container -it $cmd
+}
+
+function kpf {
+    if [ -z "$1" ]; then
+        echo "please specify a pod name..."
+        k get pods
+        return 1
+    fi
+
+    if [ -z "$2" ]; then
+        pf="4000:80"
+        echo "defaulting to ports=$pf"
+    else
+        pf="$2"
+    fi
+    pod=$(k get pods | rg $1 | awk '{print $1}')
+    k port-forward $pod $pf
+}
+
+function kdesc {
+    if [ -z "$1" ]; then
+        echo "please specify a pod name (or [resource [name]])..."
+        k get pods
+        return 1
+    fi
+
+    if [ -z "$2" ]; then
+        podname="$1"
+        resource="pod"
+        echo "defaulting to resource=$resource"
+    else
+        resource="$1"
+        podname="$2"
+    fi
+    pod=$(k get pods | rg $podname | awk '{print $1}')
+    k describe $resource $pod
+}
+
+function klogs {
+    if [ -z "$1" ]; then
+        echo "please specify a pod name..."
+        k get pods
+        return 1
+    fi
+
+    pod=$(k get pods | rg $1 | awk '{print $1}')
+    k logs -f $pod
+}
+
+
+# misc:
+#
+# I always forget about this one, if you use the gui GPG on osx
+# you need to set this so the gpg works from the cli.
+export GPG_TTY=$(tty)
+
+# yes plz
+export BASH_SILENCE_DEPRECATION_WARNING=1
