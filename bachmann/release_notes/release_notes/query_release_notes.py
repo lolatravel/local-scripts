@@ -308,7 +308,10 @@ async def get_current_and_previous_commit(pod: str, app: str) -> Tuple[str, str]
                 current_commit = commit
             elif commit != current_commit:
                 return current_commit, commit
-    raise ValueError("Could not find commits!")
+    raise ValueError(
+        "Could not find commits! Verify you have your k8 context set correctly."
+        " (You likely want kubectx prod; kubens core-services)"
+    )
 
 
 async def query_for_release_notes(
