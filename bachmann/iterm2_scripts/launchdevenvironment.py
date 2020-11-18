@@ -6,7 +6,10 @@ import iterm2
 async def launch_system(window, directory, command):
     tab = await window.async_create_tab()
     session = tab.current_session
-    await session.async_send_text(f"cd {directory};{command}\n")
+    if directory:
+        await session.async_send_text(f"cd {directory};{command}\n")
+    else:
+        await session.async_send_text(f"{command}\n")
     await tab.async_set_title(command)
 
 
@@ -27,6 +30,7 @@ async def main(connection):
         await launch_system(window, "~/code/wallet", "wallet")
         await launch_system(window, "~/code/lola-desktop", "desktoplocal")
         await launch_system(window, "~/code/email-template-service", "emailtemplate")
+        await launch_system(window, None, "ngrokSpend")
     else:
         print("No current window")
 
