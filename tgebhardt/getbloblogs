@@ -226,8 +226,12 @@ awk -F, "{ if (\$1>\"$start_date\" && \$1<\"$end_date\") print }" |
 cut -c 32- |
 while read -r line; do
     echo "  $line"
-    curl --silent --show-error --cookie TOKEN=$BLOBLOGS_TOKEN "https://bloblogs.ops.lola.com/blobs/production/$user_id/$line"  > $line
-    
+    if [ $env == "prod" ]; then
+      curl --silent --show-error --cookie TOKEN=$BLOBLOGS_TOKEN "https://bloblogs.ops.lola.com/blobs/production/$user_id/$line"  > $line
+    else
+      curl --silent --show-error --cookie TOKEN=$BLOBLOGS_TOKEN "https:///bloblogs.ops.lola.co/blobs/$env/$user_id/$line"  > $line
+    fi
+
     grep -q "Redirecting to OIDC provider" $line
     if [ $? -eq 0 ]; then
         echo
