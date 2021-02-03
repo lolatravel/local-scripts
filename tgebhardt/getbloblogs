@@ -4,11 +4,11 @@
 function show_usage {
     echo "getbloblogs retrieves bloblogs for the given user between the times requested."
     echo
-    echo "Usage  : getbloblogs <user_id> <start_date> <end_date>"
-    echo "Example: getbloblogs 1055389923487515293 '2020-09-21 11:34:00' '2020-09-21 11:35:00'"
+    echo "Usage  : getbloblogs <user_id> <start_date> <end_date> [prod|staging|dev|smoke]"
+    echo "Example: getbloblogs 1055389923487515293 '2020-09-21 11:34:00' '2020-09-21 11:35:00' prod"
     echo
-    echo "Usage  : getbloblogs <user_id> <hours_back>"
-    echo "Example: getbloblogs 1055389923487515293 3"
+    echo "Usage  : getbloblogs <user_id> <hours_back> [prod|staging|dev|smoke]"
+    echo "Example: getbloblogs 1055389923487515293 3 staging"
     echo
     echo "If a bloblog has an embedded message, it will be extracted, pretty printed and "
     echo "saved to a new file with the same base name of the original file plus a message type"
@@ -169,13 +169,26 @@ function format_file {
 
 
 
+env="prod"
 if [ $# -eq 2 ]; then
     hours_back=$2
     start_date=`date -v-${hours_back}H "+%Y-%m-%d% %H:%M:%S"`  # now - hours_back
     end_date=`date "+%Y-%m-%d% %H:%M:%S"`                      # now
 elif [ $# -eq 3 ]; then
+    re='^[0-9]+$'
+    if ! [[ $2 =~ $re ]] ; then
+      start_date=$2
+      end_date=$3
+    else
+      hours_back=$2
+      start_date=`date -v-${hours_back}H "+%Y-%m-%d% %H:%M:%S"`  # now - hours_back
+      end_date=`date "+%Y-%m-%d% %H:%M:%S"`                      # now
+      env=$3
+    fi
+elif [ $# -eq 4 ]; then
     start_date=$2
     end_date=$3
+    env=$4
 else
     show_usage
     exit 1
@@ -189,11 +202,16 @@ if [ -z "$BLOBLOGS_TOKEN" ]; then
 fi
 
 
-echo "Getting bloblogs for user ID $user_id between $start_date and $end_date"
+echo "Getting bloblogs for user ID $user_id between $start_date and $end_date using $env"
 echo
 echo "saving user's full bloblog list to /tmp/bloblogs.txt..."
 # comment out this line once downloaded to speed up development/testing of this script
-aws s3 ls s3://bloblogs.ops.lola.com/blobs/production/$user_id/ > /tmp/bloblogs.txt
+if [ $env == "prod" ]; then
+  aws s3 ls s3://bloblogs.ops.lola.com/blobs/production/$user_id/ > /tmp/bloblogs.txt
+else
+  aws s3 ls s3://bloblogs.ops.lola.co/blobs/$env/$user_id/ > /tmp/bloblogs.txt
+fi
+
 if [ $? -ne 0 ]; then
     echo
     echo "***** ERROR: aws s3 ls failed! Have you run aws-mfa recently?"
