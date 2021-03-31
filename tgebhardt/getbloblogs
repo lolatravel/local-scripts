@@ -1,0 +1,246 @@
+#!/usr/bin/env bash
+
+
+function show_usage {
+    echo "getbloblogs retrieves bloblogs for the given user between the times requested."
+    echo
+    echo "Usage  : getbloblogs <user_id> <start_date> <end_date> [prod|staging|dev|smoke]"
+    echo "Example: getbloblogs 1055389923487515293 '2020-09-21 11:34:00' '2020-09-21 11:35:00' prod"
+    echo
+    echo "Usage  : getbloblogs <user_id> <hours_back> [prod|staging|dev|smoke]"
+    echo "Example: getbloblogs 1055389923487515293 3 staging"
+    echo
+    echo "If a bloblog has an embedded message, it will be extracted, pretty printed and "
+    echo "saved to a new file with the same base name of the original file plus a message type"
+    echo "and content type suffix. The orignal file is kept for context."
+    echo
+    echo "For example, if the original file is named file.json and an XML message is detected"
+    echo "inside of it, then a new file called file.request.xml will be created."
+    echo
+    echo "The <hours_back> parameter can be used to dynamically compute a time range"
+    echo "from x hours ago until now."
+    echo
+    echo "Depends on jq and xmllint. To install:"
+    echo "  brew install jq"
+    echo "  brew install libxml2"
+    echo
+}
+
+function show_token_help {
+    echo "To use getbloblogs, your current authentication token from bloblogs.ops.lola.com must be extracted"
+    echo "and set as the BLOBLOGS_TOKEN environment variable. This token can be reused but will eventually need"
+    echo "to be updated once it expires."
+    echo
+    echo "To set this token:"
+    echo "  1) Visit a valid bloblog URL in your browser. The following link will work:"
+    echo "       https://bloblogs.ops.lola.com/blobs/production/1055389923487515293/travel-service_2020-09-18T22:43:02.721930Z_1177060.json"
+    echo "  2) Sign in with your Lola Google account if necessary"
+    echo "  3) The given bloblog should now be visible"
+    echo "  4) Go to Developer Tools->Application->Cookies and copy the value of the TOKEN cookie"
+    echo "  4) Set and export this value as an environment variable via:"
+    echo "       BLOBLOGS_TOKEN=\"paste_value_from_browser_here\""
+    echo "       export BLOBLOGS_TOKEN"
+    echo
+}
+
+function add_metadata {
+    # add Lola correlation ids to the pretty printed file for easy grepping
+    # json doesn't technically support comments but let's use them anyway
+
+    file=$1
+
+    search_id=$(jq -r ".search_id" $file)
+    request_id=$(jq -r ".request_id" $file)
+
+    # if request_id wasn't found, try a variant where it is
+    # called "id" nested in a "request" element
+    if [[ $request_id == "null" ]]; then
+      request_id=$(jq -r ".request.id" $file)
+    fi
+    user_id=$(jq -r ".user_id" $file)
+    timestamp=$(jq -r ".timestamp" $file)
+
+    cat <<LOLA_HEADER
+# LOLA METADATA
+#    search_id : $search_id
+#    request_id: $request_id
+#    user_id   : $user_id
+#    timestamp : $timestamp
+
+LOLA_HEADER
+}
+
+function format_amadeus_legacy {
+    file=$1
+    xml_file=$(basename $file .json).xml
+    echo "+ $xml_file"
+    (add_metadata $file) > $xml_file
+    jq -r ".xml" $file | xmllint --format - >> $xml_file
+    mv $file $file.orig
+}
+
+function format_amd_flight {
+    file=$1
+    base_file=$(basename $file .json)
+    msg_types="request response"
+
+    # both the request and response are in a single bloblog
+    # extract and save them to separate files: .request.xml and .response.xml
+    for msg_type in $msg_types
+    do
+        if [ $msg_type = "request" ]; then
+            node="data"
+        else
+            node="body"
+        fi
+
+        xml_file="${base_file}_${msg_type}.xml"
+        echo "+ $xml_file"
+        (add_metadata $file) > $xml_file
+        jq -r ".data.${msg_type}.${node}" $file | xmllint --format - >> $xml_file
+
+        mv $file $file.orig
+    done
+}
+
+function format_sabre {
+    file=$1
+    base_file=$(basename $file .json)
+    msg_types="request response"
+
+    # the file name does not convey if this is a request or a response and of course
+    # the message body is in a different place for each
+    found_body=0
+    for msg_type in $msg_types
+    do
+        if [ $msg_type = "request" ]; then
+            node="body"
+        else
+            node="response"
+        fi
+
+        # check for the msg type's corresponding "body" node
+        # if present, save it to the appropriate .request.json or .response.json file
+        jq -e ".${node}" $file > /dev/null
+        if [ $? -eq 0 ]; then
+            json_msg_file="${base_file}_${msg_type}.json"
+            echo "+ $json_msg_file"
+            (add_metadata $file) > $json_msg_file
+            jq -r ".${node}" $file | jq >> $json_msg_file
+            found_body=1
+        fi
+
+    done
+
+    # if we didn't find a json body then try looking for xml content
+    # it appears that some of Sabre is still using Zeep
+    if [ $found_body -eq 0 ]; then
+        jq -r ".event" $file | grep -q "<?xml"
+        if [ $? -eq 0 ]; then
+            xml_msg_file="${base_file}.xml"
+            echo "+ $xml_msg_file"
+            (add_metadata $file) > $xml_msg_file
+            jq -r ".event" $file | tail -n +2 | xmllint --format -  >> $xml_msg_file
+            found_body=1
+        fi
+    fi
+
+    if [ $found_body -eq 1 ]; then
+      mv $file $file.orig
+    fi
+}
+
+function format_file {
+    file=$1
+    
+    # overwrite original bloblog file with pretty printed json
+    # this does not pretty print string nodes with embedded json
+    echo "$(jq . $file)" > $file
+
+    # format the embedded provider message
+    if [[ $file == *"travel-service_AMD"* ]]; then
+        format_amadeus_legacy $file
+    elif [[ $file == *"_amd_flight_"* ]]; then
+        format_amd_flight $file
+    elif [[ $file == *"travel-service_Sabre_"* ]]; then
+        format_sabre $file
+    fi
+}
+
+
+
+env="prod"
+if [ $# -eq 2 ]; then
+    hours_back=$2
+    start_date=`date -v-${hours_back}H "+%Y-%m-%d% %H:%M:%S"`  # now - hours_back
+    end_date=`date "+%Y-%m-%d% %H:%M:%S"`                      # now
+elif [ $# -eq 3 ]; then
+    re='^[0-9]+$'
+    if ! [[ $2 =~ $re ]] ; then
+      start_date=$2
+      end_date=$3
+    else
+      hours_back=$2
+      start_date=`date -v-${hours_back}H "+%Y-%m-%d% %H:%M:%S"`  # now - hours_back
+      end_date=`date "+%Y-%m-%d% %H:%M:%S"`                      # now
+      env=$3
+    fi
+elif [ $# -eq 4 ]; then
+    start_date=$2
+    end_date=$3
+    env=$4
+else
+    show_usage
+    exit 1
+fi
+
+user_id=$1
+
+if [ -z "$BLOBLOGS_TOKEN" ]; then
+    show_token_help
+    exit 1
+fi
+
+
+echo "Getting bloblogs for user ID $user_id between $start_date and $end_date using $env"
+echo
+echo "saving user's full bloblog list to /tmp/bloblogs.txt..."
+# comment out this line once downloaded to speed up development/testing of this script
+if [ $env == "prod" ]; then
+  aws s3 ls s3://bloblogs.ops.lola.com/blobs/production/$user_id/ > /tmp/bloblogs.txt
+else
+  aws s3 ls s3://bloblogs.ops.lola.co/blobs/$env/$user_id/ > /tmp/bloblogs.txt
+fi
+
+if [ $? -ne 0 ]; then
+    echo
+    echo "***** ERROR: aws s3 ls failed! Have you run aws-mfa recently?"
+    echo
+    exit 1
+fi
+
+echo "downloading and processing bloblogs..."
+cat /tmp/bloblogs.txt |
+sort |
+awk -F, "{ if (\$1>\"$start_date\" && \$1<\"$end_date\") print }" |
+cut -c 32- |
+while read -r line; do
+    echo "  $line"
+    if [ $env == "prod" ]; then
+      curl --silent --show-error --cookie TOKEN=$BLOBLOGS_TOKEN "https://bloblogs.ops.lola.com/blobs/production/$user_id/$line"  > $line
+    else
+      curl --silent --show-error --cookie TOKEN=$BLOBLOGS_TOKEN "https:///bloblogs.ops.lola.co/blobs/$env/$user_id/$line"  > $line
+    fi
+
+    grep -q "Redirecting to OIDC provider" $line
+    if [ $? -eq 0 ]; then
+        echo
+        echo "***** ERROR: BLOBLOGS_TOKEN appears to have expired or is invalid. Please grab a new one."
+        echo
+        show_token_help
+        echo
+        exit 1
+    fi
+    
+    format_file $line
+done
