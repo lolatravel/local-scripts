@@ -1,5 +1,5 @@
 kubernetes==10.0.1
-uvicorn==0.11.3
+uvicorn==0.11.7
 async-lru==1.0.2
 starlette==0.13.2
 vcrpy==4.0.2
