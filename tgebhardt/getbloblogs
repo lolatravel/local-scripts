@@ -1,21 +1,29 @@
 #!/usr/bin/env bash
 
 
-function show_usage {
-    echo "getbloblogs retrieves bloblogs for the given user between the times requested."
+function usage {
+    echo "getbloblogs retrieves and pretty prints bloblogs."
     echo
-    echo "Usage  : getbloblogs <user_id> <start_date> <end_date> [prod|staging|dev|smoke]"
-    echo "Example: getbloblogs 1055389923487515293 '2020-09-21 11:34:00' '2020-09-21 11:35:00' prod"
+    echo "Get logs for a user between two dates:"
+    echo "  Usage  : getbloblogs <user_id> <start_date> <end_date> [prod|staging|dev|smoke]"
+    echo "  Example: getbloblogs 1055389923487515293 '2020-09-21 11:34:00' '2020-09-21 11:35:00' prod"
     echo
-    echo "Usage  : getbloblogs <user_id> <hours_back> [prod|staging|dev|smoke]"
-    echo "Example: getbloblogs 1055389923487515293 3 staging"
+    echo "Get logs for a user going hours back:"
+    echo "  Usage  : getbloblogs <user_id> <hours_back> [prod|staging|dev|smoke]"
+    echo "  Example: getbloblogs 1055389923487515293 3 staging"
+    echo
+    echo "Get a specific bloblog via URL or locally:"
+    echo "  Usage  : getbloblogs <bloglog_url|local_file>"
+    echo "  Example: getbloblogs https://bloblogs.ops.lola.com/blobs/production/1522068005066900347/file.json"
     echo
     echo "If a bloblog has an embedded message, it will be extracted, pretty printed and "
     echo "saved to a new file with the same base name of the original file plus a message type"
     echo "and content type suffix. The orignal file is kept for context."
     echo
-    echo "For example, if the original file is named file.json and an XML message is detected"
-    echo "inside of it, then a new file called file.request.xml will be created."
+    echo "For example, if the original file is named file.json and an XML request is detected"
+    echo "inside of it, then a new file called file.request.xml will be created. The original file"
+    echo "is then renamed to file.json.orig. Metadata from the original is included in the newly formatted"
+    echo "file as a header comment to make grepping for things like search_id easier."
     echo
     echo "The <hours_back> parameter can be used to dynamically compute a time range"
     echo "from x hours ago until now."
@@ -24,30 +32,15 @@ function show_usage {
     echo "  brew install jq"
     echo "  brew install libxml2"
     echo
-}
-
-function show_token_help {
-    echo "To use getbloblogs, your current authentication token from bloblogs.ops.lola.com must be extracted"
-    echo "and set as the BLOBLOGS_TOKEN environment variable. This token can be reused but will eventually need"
-    echo "to be updated once it expires."
-    echo
-    echo "To set this token:"
-    echo "  1) Visit a valid bloblog URL in your browser. The following link will work:"
-    echo "       https://bloblogs.ops.lola.com/blobs/production/1055389923487515293/travel-service_2020-09-18T22:43:02.721930Z_1177060.json"
-    echo "  2) Sign in with your Lola Google account if necessary"
-    echo "  3) The given bloblog should now be visible"
-    echo "  4) Go to Developer Tools->Application->Cookies and copy the value of the TOKEN cookie"
-    echo "  4) Set and export this value as an environment variable via:"
-    echo "       BLOBLOGS_TOKEN=\"paste_value_from_browser_here\""
-    echo "       export BLOBLOGS_TOKEN"
-    echo
+    exit 1
 }
 
 function add_metadata {
-    # add Lola correlation ids to the pretty printed file for easy grepping
+    # add Lola correlation ids as a comment to the pretty printed file for easy grepping
     # json doesn't technically support comments but let's use them anyway
 
     file=$1
+    comment_type=$2
 
     search_id=$(jq -r ".search_id" $file)
     request_id=$(jq -r ".request_id" $file)
@@ -55,17 +48,27 @@ function add_metadata {
     # if request_id wasn't found, try a variant where it is
     # called "id" nested in a "request" element
     if [[ $request_id == "null" ]]; then
-      request_id=$(jq -r ".request.id" $file)
+        request_id=$(jq -r ".request.id" $file)
     fi
     user_id=$(jq -r ".user_id" $file)
     timestamp=$(jq -r ".timestamp" $file)
 
+    if [[ $comment_type == "xml" ]]; then
+        comment_block_start="<!--"
+        comment_block_end="-->"
+    else
+        comment_block_start="/*"
+        comment_block_end="*/"
+    fi
+
     cat <<LOLA_HEADER
+$comment_block_start
 # LOLA METADATA
 #    search_id : $search_id
 #    request_id: $request_id
 #    user_id   : $user_id
 #    timestamp : $timestamp
+$comment_block_end
 
 LOLA_HEADER
 }
@@ -74,7 +77,7 @@ function format_amadeus_legacy {
     file=$1
     xml_file=$(basename $file .json).xml
     echo "+ $xml_file"
-    (add_metadata $file) > $xml_file
+    (add_metadata $file "xml") > $xml_file
     jq -r ".xml" $file | xmllint --format - >> $xml_file
     mv $file $file.orig
 }
@@ -96,7 +99,7 @@ function format_amd_flight {
 
         xml_file="${base_file}_${msg_type}.xml"
         echo "+ $xml_file"
-        (add_metadata $file) > $xml_file
+        (add_metadata $file "xml") > $xml_file
         jq -r ".data.${msg_type}.${node}" $file | xmllint --format - >> $xml_file
 
         mv $file $file.orig
@@ -125,11 +128,10 @@ function format_sabre {
         if [ $? -eq 0 ]; then
             json_msg_file="${base_file}_${msg_type}.json"
             echo "+ $json_msg_file"
-            (add_metadata $file) > $json_msg_file
+            (add_metadata $file "json") > $json_msg_file
             jq -r ".${node}" $file | jq >> $json_msg_file
             found_body=1
         fi
-
     done
 
     # if we didn't find a json body then try looking for xml content
@@ -139,14 +141,14 @@ function format_sabre {
         if [ $? -eq 0 ]; then
             xml_msg_file="${base_file}.xml"
             echo "+ $xml_msg_file"
-            (add_metadata $file) > $xml_msg_file
+            (add_metadata $file "xml") > $xml_msg_file
             jq -r ".event" $file | tail -n +2 | xmllint --format -  >> $xml_msg_file
             found_body=1
         fi
     fi
 
     if [ $found_body -eq 1 ]; then
-      mv $file $file.orig
+        mv $file $file.orig
     fi
 }
 
@@ -167,80 +169,102 @@ function format_file {
     fi
 }
 
+function aws_mfa_warning {
+    echo
+    echo "***** ERROR: aws s3 ls failed! Have you run aws-mfa recently?"
+    echo
+    exit 1
+}
 
+function process_file {
+    file=$1
+
+    # handles direct https linkd to blobs found in Sumo or Womcon
+    file=${file//https/s3}
+
+    # supports downloading from S3 or just formatting local files
+    if [[ $file == s3:* ]]; then
+        aws s3 cp $file . --quiet
+        if [ $? -ne 0 ]; then
+            aws_mfa_warning
+        fi
+        format_file `basename $file`
+    else
+        if [ ! -f $file ]; then
+           echo "***** ERROR: Local file not found"
+           echo $file
+           exit 1
+        fi
+        format_file $file
+    fi
+    exit 0
+}
+
+function process_by_time_range {
+    echo "Getting bloblogs for user ID $user_id between $start_date and $end_date using $env"
+    echo
+    echo "saving user's full bloblog list to /tmp/bloblogs.txt..."
+    # comment out this line once downloaded to speed up development/testing of this script
+    aws s3 ls $BLOBLOGS_BASE_URL/$user_id/ > /tmp/bloblogs.txt
+    if [ $? -ne 0 ]; then
+        aws_mfa_warning
+    fi
+
+    echo "downloading and processing bloblogs..."
+    cat /tmp/bloblogs.txt |
+    sort |
+    awk -F, "{ if (\$1>\"$start_date\" && \$1<\"$end_date\") print }" |
+    cut -c 32- |
+    while read -r line; do
+
+        # TODO: generalize provider filter
+        # if [[ $line != *Sabre* ]]; then
+        #   continue
+        # fi
+
+        echo "  $line"
+        aws s3 cp $BLOBLOGS_BASE_URL/$user_id/$line . --quiet
+        format_file $line
+    done
+}
 
 env="prod"
-if [ $# -eq 2 ]; then
+if [ $# -eq 1 ]; then
+    requested_file=$1
+elif [ $# -eq 2 ]; then
     hours_back=$2
     start_date=`date -v-${hours_back}H "+%Y-%m-%d% %H:%M:%S"`  # now - hours_back
     end_date=`date "+%Y-%m-%d% %H:%M:%S"`                      # now
 elif [ $# -eq 3 ]; then
     re='^[0-9]+$'
     if ! [[ $2 =~ $re ]] ; then
-      start_date=$2
-      end_date=$3
+        start_date=$2
+        end_date=$3
     else
-      hours_back=$2
-      start_date=`date -v-${hours_back}H "+%Y-%m-%d% %H:%M:%S"`  # now - hours_back
-      end_date=`date "+%Y-%m-%d% %H:%M:%S"`                      # now
-      env=$3
+        hours_back=$2
+        start_date=`date -v-${hours_back}H "+%Y-%m-%d% %H:%M:%S"`  # now - hours_back
+        end_date=`date "+%Y-%m-%d% %H:%M:%S"`                      # now
+        env=$3
     fi
 elif [ $# -eq 4 ]; then
     start_date=$2
     end_date=$3
     env=$4
 else
-    show_usage
-    exit 1
+    usage
 fi
 
-user_id=$1
-
-if [ -z "$BLOBLOGS_TOKEN" ]; then
-    show_token_help
-    exit 1
-fi
-
-
-echo "Getting bloblogs for user ID $user_id between $start_date and $end_date using $env"
-echo
-echo "saving user's full bloblog list to /tmp/bloblogs.txt..."
-# comment out this line once downloaded to speed up development/testing of this script
 if [ $env == "prod" ]; then
-  aws s3 ls s3://bloblogs.ops.lola.com/blobs/production/$user_id/ > /tmp/bloblogs.txt
+    BLOBLOGS_BASE_URL=s3://bloblogs.ops.lola.com/blobs/production
 else
-  aws s3 ls s3://bloblogs.ops.lola.co/blobs/$env/$user_id/ > /tmp/bloblogs.txt
+    BLOBLOGS_BASE_URL=s3://bloblogs.ops.lola.co/blobs/$env
 fi
 
-if [ $? -ne 0 ]; then
-    echo
-    echo "***** ERROR: aws s3 ls failed! Have you run aws-mfa recently?"
-    echo
-    exit 1
+if [ -n $requested_file ]; then
+    process_file $requested_file
+else
+    user_id=$1
+    process_by_time_range
 fi
 
-echo "downloading and processing bloblogs..."
-cat /tmp/bloblogs.txt |
-sort |
-awk -F, "{ if (\$1>\"$start_date\" && \$1<\"$end_date\") print }" |
-cut -c 32- |
-while read -r line; do
-    echo "  $line"
-    if [ $env == "prod" ]; then
-      curl --silent --show-error --cookie TOKEN=$BLOBLOGS_TOKEN "https://bloblogs.ops.lola.com/blobs/production/$user_id/$line"  > $line
-    else
-      curl --silent --show-error --cookie TOKEN=$BLOBLOGS_TOKEN "https:///bloblogs.ops.lola.co/blobs/$env/$user_id/$line"  > $line
-    fi
 
-    grep -q "Redirecting to OIDC provider" $line
-    if [ $? -eq 0 ]; then
-        echo
-        echo "***** ERROR: BLOBLOGS_TOKEN appears to have expired or is invalid. Please grab a new one."
-        echo
-        show_token_help
-        echo
-        exit 1
-    fi
-    
-    format_file $line
-done
